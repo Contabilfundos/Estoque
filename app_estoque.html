@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análise de Estoque — FIDC</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #1a2340; min-height: 100vh; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #0f1b35 0%, #1f3864 100%); color: white; padding: 24px 40px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  .header-icon { font-size: 36px; }
+  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .header p { font-size: 13px; opacity: 0.75; margin-top: 3px; }
+
+  /* Layout */
+  .container { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+
+  /* Cards */
+  .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .card-title { font-size: 14px; font-weight: 700; color: #0f1b35; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .card-title span { font-size: 18px; }
+
+  /* Upload */
+  .drop-zone { border: 2px dashed #c5d0e0; border-radius: 10px; padding: 36px 24px; text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc; }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: #2e75b6; background: #eef4fb; }
+  .drop-zone input { display: none; }
+  .drop-icon { font-size: 40px; margin-bottom: 10px; }
+  .drop-text { font-size: 14px; color: #4a5a78; }
+  .drop-text strong { color: #1f3864; }
+  .drop-hint { font-size: 12px; color: #8898aa; margin-top: 6px; }
+
+  /* Arquivo lista */
+  .file-list { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .file-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f0f4f8; border-radius: 8px; font-size: 13px; }
+  .file-item.done { background: #e8f5e9; }
+  .file-item.error { background: #fdecea; }
+  .file-badge { font-size: 16px; }
+  .file-name { flex: 1; font-weight: 500; }
+  .file-size { color: #8898aa; font-size: 12px; }
+
+  /* Config */
+  .config-item { margin-bottom: 14px; }
+  .checkbox-label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; font-weight: 500; color: #2d3a55; }
+  .checkbox-label input[type=checkbox] { width: 16px; height: 16px; accent-color: #1f3864; cursor: pointer; }
+  .config-hint { font-size: 12px; color: #8898aa; margin-top: 4px; margin-left: 26px; }
+  .number-input-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; margin-left: 26px; }
+  .number-input-row label { font-size: 13px; color: #4a5a78; }
+  .number-input-row input { width: 64px; padding: 4px 8px; border: 1px solid #c5d0e0; border-radius: 6px; font-size: 13px; text-align: center; }
+
+  /* Botões */
+  .btn { display: block; width: 100%; padding: 13px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 8px; }
+  .btn-primary { background: linear-gradient(135deg, #1f3864, #2e75b6); color: white; box-shadow: 0 3px 10px rgba(31,56,100,0.3); }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(31,56,100,0.4); }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  .btn-secondary { background: #f0f4f8; color: #4a5a78; border: 1px solid #c5d0e0; }
+  .btn-secondary:hover { background: #e3e9f0; }
+  .btn-download { background: linear-gradient(135deg, #1a7a4a, #22a060); color: white; box-shadow: 0 3px 10px rgba(26,122,74,0.3); font-size: 15px; padding: 15px; }
+  .btn-download:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(26,122,74,0.4); }
+
+  /* Progress */
+  .progress-section { margin-top: 20px; display: none; }
+  .progress-label { font-size: 13px; color: #4a5a78; margin-bottom: 8px; font-weight: 500; }
+  .progress-bar-bg { background: #e3e9f0; border-radius: 99px; height: 10px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #1f3864, #2e75b6); border-radius: 99px; transition: width 0.3s; width: 0%; }
+
+  /* Status */
+  .status-bar { margin-top: 16px; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; display: none; }
+  .status-bar.success { background: #e8f5e9; color: #1a7a4a; border-left: 4px solid #22a060; }
+  .status-bar.warning { background: #fff8e1; color: #856404; border-left: 4px solid #ffc107; }
+  .status-bar.error   { background: #fdecea; color: #b71c1c; border-left: 4px solid #f44336; }
+
+  /* Results */
+  .results-section { margin-top: 24px; }
+  .result-title { font-size: 15px; font-weight: 700; color: #0f1b35; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #e0e7f0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { background: #1f3864; color: white; padding: 10px 14px; text-align: left; font-weight: 600; font-size: 12px; white-space: nowrap; }
+  tbody tr:nth-child(even) { background: #f0f5fb; }
+  tbody tr:hover { background: #e3edf7; }
+  tbody tr.total-row { background: #2e75b6 !important; color: white; font-weight: 700; }
+  tbody tr.total-row td { color: white; }
+  tbody tr.a-vencer { background: #eaf4fd; }
+  tbody tr.vencido { background: #fdecea; }
+  td { padding: 9px 14px; border-bottom: 1px solid #e8eef5; white-space: nowrap; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .divider { border: none; border-top: 1px solid #e0e7f0; margin: 24px 0; }
+  .download-section { margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">📊</div>
+  <div>
+    <h1>Análise de Estoque — FIDC</h1>
+    <p>Processa arquivos CSV diretamente no navegador • Sem instalar nada • Resultado em Excel</p>
+  </div>
+</div>
+
+<div class="container">
+  <div class="grid">
+
+    <!-- Coluna esquerda: Upload -->
+    <div>
+      <div class="card">
+        <div class="card-title"><span>📁</span> 1. Selecione os arquivos CSV</div>
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <input type="file" id="fileInput" multiple accept=".csv">
+          <div class="drop-icon">📂</div>
+          <div class="drop-text"><strong>Clique para selecionar</strong> ou arraste os arquivos aqui</div>
+          <div class="drop-hint">Arquivos CSV separados por ponto e vírgula • Pode selecionar vários de uma vez</div>
+        </div>
+        <div class="file-list" id="fileList"></div>
+
+        <!-- Progress -->
+        <div class="progress-section" id="progressSection">
+          <div class="progress-label" id="progressLabel">Processando...</div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+        </div>
+        <div class="status-bar" id="statusBar"></div>
+      </div>
+
+      <!-- Results -->
+      <div class="results-section" id="resultsSection" style="display:none">
+
+        <div id="agingResult"></div>
+        <hr class="divider" id="div1" style="display:none">
+        <div id="pddResult"></div>
+        <hr class="divider" id="div2" style="display:none">
+        <div id="sacadosResult"></div>
+        <hr class="divider" id="div3" style="display:none">
+        <div id="totaisResult"></div>
+
+        <div class="download-section">
+          <button class="btn btn-download" id="downloadBtn" onclick="downloadExcel()">⬇️ Baixar Excel com todos os resultados</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Coluna direita: Config -->
+    <div>
+      <div class="card">
+        <div class="card-title"><span>⚙️</span> 2. Configure as análises</div>
+
+        <div class="config-item">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkAging" checked> 📅 Aging por faixa de dias
+          </label>
+          <div class="config-hint">DATA_VENCIMENTO_AJUSTADA − DATA_REFERENCIA</div>
+        </div>
+        <div class="config-item">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkPdd" checked> 📋 Faixa de PDD × Situação
+          </label>
+          <div class="config-hint">Vencido / A vencer por faixa PDD</div>
+        </div>
+        <div class="config-item">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkSacados" checked> 👤 Top maiores sacados
+          </label>
+          <div class="number-input-row">
+            <label>Quantos?</label>
+            <input type="number" id="topN" value="10" min="1" max="100">
+          </div>
+        </div>
+        <div class="config-item">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkTotais" checked> 💰 Totais gerais
+          </label>
+          <div class="config-hint">Soma de VP, PDD e Valor Nominal</div>
+        </div>
+
+        <hr class="divider">
+
+        <button class="btn btn-primary" id="btnProcessar" onclick="iniciarProcessamento()" disabled>
+          🚀 Processar e gerar Excel
+        </button>
+        <button class="btn btn-secondary" style="margin-top:10px" onclick="reiniciar()">
+          🗑️ Reiniciar tudo
+        </button>
+
+        <hr class="divider">
+        <div style="font-size:12px; color:#8898aa; line-height:1.7">
+          <strong style="color:#4a5a78">ℹ️ Como funciona</strong><br>
+          Os arquivos são processados diretamente no seu computador, linha por linha. Nenhum dado é enviado para a internet. Funciona com arquivos grandes sem travar.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const ORDEM_AGING = [
+  '0 a 30 a vencer','31 a 60 a vencer','61 a 90 a vencer',
+  '91 a 120 a vencer','121 a 150 a vencer','151 a 180 a vencer',
+  '181 a 360 a vencer','Acima de 361 a vencer',
+  '0 a 30 vencido','31 a 60 vencido','61 a 90 vencido',
+  '91 a 120 vencido','121 a 150 vencido','151 a 180 vencido',
+  '181 a 360 vencido','Vencido a mais de 361 dias'
+];
+
+let state = newState();
+let pendingFiles = [];
+
+function newState() {
+  return {
+    aging:    Object.fromEntries(ORDEM_AGING.map(f => [f, {count:0, sum:0}])),
+    pdd:      {},
+    sacados:  {},
+    totais:   {vp:0, vpdd:0, vnom:0, hasVpdd:false, hasVnom:false},
+    filesOK:  [],
+    totalRows:0
+  };
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function parseVal(v) {
+  if (!v || v === '') return 0;
+  return parseFloat(String(v).replace(',','.').trim()) || 0;
+}
+
+function daysDiff(dateVenc, dateRef) {
+  if (!dateVenc || !dateRef) return NaN;
+  const d1 = new Date(dateVenc), d2 = new Date(dateRef);
+  if (isNaN(d1) || isNaN(d2)) return NaN;
+  return Math.round((d1 - d2) / 86400000);
+}
+
+function classificarFaixa(dias, situacao) {
+  if (isNaN(dias)) return 'Sem data';
+  const avencer = situacao === 'A vencer' || dias >= 0;
+  const d = Math.abs(dias);
+  if (avencer) {
+    if (d <=  30) return '0 a 30 a vencer';
+    if (d <=  60) return '31 a 60 a vencer';
+    if (d <=  90) return '61 a 90 a vencer';
+    if (d <= 120) return '91 a 120 a vencer';
+    if (d <= 150) return '121 a 150 a vencer';
+    if (d <= 180) return '151 a 180 a vencer';
+    if (d <= 360) return '181 a 360 a vencer';
+    return 'Acima de 361 a vencer';
+  } else {
+    if (d <=  30) return '0 a 30 vencido';
+    if (d <=  60) return '31 a 60 vencido';
+    if (d <=  90) return '61 a 90 vencido';
+    if (d <= 120) return '91 a 120 vencido';
+    if (d <= 150) return '121 a 150 vencido';
+    if (d <= 180) return '151 a 180 vencido';
+    if (d <= 360) return '181 a 360 vencido';
+    return 'Vencido a mais de 361 dias';
+  }
+}
+
+function fmt(n) {
+  return Number(n).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtInt(n) {
+  return Number(n).toLocaleString('pt-BR');
+}
+
+// ─── FILE HANDLING ────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  addFiles(Array.from(e.dataTransfer.files));
+});
+fileInput.addEventListener('change', () => addFiles(Array.from(fileInput.files)));
+
+function addFiles(files) {
+  const csvs = files.filter(f => f.name.toLowerCase().endsWith('.csv'));
+  const novos = csvs.filter(f => !pendingFiles.find(p => p.name === f.name));
+  pendingFiles = [...pendingFiles, ...novos];
+  renderFileList();
+  document.getElementById('btnProcessar').disabled = pendingFiles.length === 0;
+}
+
+function renderFileList() {
+  const list = document.getElementById('fileList');
+  list.innerHTML = pendingFiles.map((f,i) => {
+    const done  = state.filesOK.includes(f.name);
+    const mb = (f.size/1048576).toFixed(1);
+    return `<div class="file-item ${done?'done':''}">
+      <span class="file-badge">${done?'✅':'📄'}</span>
+      <span class="file-name">${f.name}</span>
+      <span class="file-size">${mb} MB</span>
+    </div>`;
+  }).join('');
+}
+
+// ─── PROCESSAMENTO ────────────────────────────────────────────────────────────
+function processarRow(row) {
+  // Ignorar linhas de cabeçalho duplicado
+  if (!row || row['FAIXA_PDD'] === 'FAIXA_PDD' || row['SITUACAO_RECEBIVEL'] === 'SITUACAO_RECEBIVEL') return;
+
+  const vp   = parseVal(row['VALOR_PRESENTE']);
+  const vpdd = parseVal(row['VALOR_PDD']);
+  const vnom = parseVal(row['VALOR_NOMINAL']);
+  const sit  = (row['SITUACAO_RECEBIVEL']||'').trim();
+  const fpdd = (row['FAIXA_PDD']||'').trim();
+  const sacado = (row['NOME_SACADO']||'').trim();
+
+  // Aging
+  if (document.getElementById('chkAging').checked) {
+    const dias = daysDiff(row['DATA_VENCIMENTO_AJUSTADA'], row['DATA_REFERENCIA']);
+    const faixa = classificarFaixa(dias, sit);
+    if (state.aging[faixa]) {
+      state.aging[faixa].count++;
+      state.aging[faixa].sum += vp;
+    }
+  }
+
+  // PDD
+  if (document.getElementById('chkPdd').checked && fpdd && (sit === 'A vencer' || sit === 'Vencido')) {
+    const key = fpdd;
+    if (!state.pdd[key]) state.pdd[key] = {};
+    if (!state.pdd[key][sit]) state.pdd[key][sit] = {count:0, sum:0};
+    state.pdd[key][sit].count++;
+    state.pdd[key][sit].sum += vp;
+  }
+
+  // Sacados
+  if (document.getElementById('chkSacados').checked && sacado) {
+    if (!state.sacados[sacado]) state.sacados[sacado] = {count:0, sum:0};
+    state.sacados[sacado].count++;
+    state.sacados[sacado].sum += vp;
+  }
+
+  // Totais
+  if (document.getElementById('chkTotais').checked) {
+    state.totais.vp   += vp;
+    state.totais.vpdd += vpdd;
+    state.totais.vnom += vnom;
+    if (row['VALOR_PDD']     !== undefined) state.totais.hasVpdd = true;
+    if (row['VALOR_NOMINAL'] !== undefined) state.totais.hasVnom = true;
+  }
+
+  state.totalRows++;
+}
+
+async function iniciarProcessamento() {
+  const novos = pendingFiles.filter(f => !state.filesOK.includes(f.name));
+  if (novos.length === 0) { showStatus('Esses arquivos já foram processados. Adicione novos arquivos.', 'warning'); return; }
+
+  document.getElementById('btnProcessar').disabled = true;
+  document.getElementById('progressSection').style.display = 'block';
+  document.getElementById('statusBar').style.display = 'none';
+
+  for (let i = 0; i < novos.length; i++) {
+    const file = novos[i];
+    const pct = Math.round((i / novos.length) * 100);
+    setProgress(pct, `Processando ${file.name} (${i+1}/${novos.length})...`);
+    await processarArquivo(file);
+    state.filesOK.push(file.name);
+    renderFileList();
+  }
+
+  setProgress(100, 'Concluído!');
+  setTimeout(() => { document.getElementById('progressSection').style.display = 'none'; }, 1200);
+  showStatus(`✅ ${novos.length} arquivo(s) processado(s) com sucesso! Total: ${fmtInt(state.totalRows)} registros.`, 'success');
+  document.getElementById('btnProcessar').disabled = false;
+  renderResults();
+}
+
+function processarArquivo(file) {
+  return new Promise((resolve, reject) => {
+    Papa.parse(file, {
+      header: true,
+      delimiter: ';',
+      encoding: 'ISO-8859-1',
+      skipEmptyLines: true,
+      step: (result) => { try { processarRow(result.data); } catch(e) {} },
+      complete: resolve,
+      error: reject
+    });
+  });
+}
+
+function setProgress(pct, label) {
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = label;
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('statusBar');
+  el.textContent = msg;
+  el.className = 'status-bar ' + type;
+  el.style.display = 'block';
+}
+
+// ─── RENDER RESULTS ───────────────────────────────────────────────────────────
+function renderResults() {
+  document.getElementById('resultsSection').style.display = 'block';
+  renderAging();
+  renderPDD();
+  renderSacados();
+  renderTotais();
+}
+
+function renderAging() {
+  if (!document.getElementById('chkAging').checked) { document.getElementById('agingResult').innerHTML=''; return; }
+  let totalCount=0, totalSum=0;
+  let rows = ORDEM_AGING.map(f => {
+    const d = state.aging[f];
+    totalCount += d.count; totalSum += d.sum;
+    const isVenc = f.includes('vencido');
+    return `<tr class="${isVenc?'vencido':'a-vencer'}">
+      <td>${f}</td><td class="num">${fmtInt(d.count)}</td><td class="num">R$ ${fmt(d.sum)}</td></tr>`;
+  }).join('');
+  rows += `<tr class="total-row"><td>TOTAL</td><td class="num">${fmtInt(totalCount)}</td><td class="num">R$ ${fmt(totalSum)}</td></tr>`;
+  document.getElementById('agingResult').innerHTML = `
+    <div class="result-title">📅 Aging por Faixa de Dias</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Faixa</th><th>Qtd de Recebíveis</th><th>Valor Presente (R$)</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  document.getElementById('div1').style.display = '';
+}
+
+function renderPDD() {
+  if (!document.getElementById('chkPdd').checked) { document.getElementById('pddResult').innerHTML=''; return; }
+  const faixas = Object.keys(state.pdd).sort();
+  let totAV=0, totVD=0, totQAV=0, totQVD=0;
+  let rows = faixas.map(f => {
+    const av  = state.pdd[f]['A vencer'] || {count:0,sum:0};
+    const vd  = state.pdd[f]['Vencido']  || {count:0,sum:0};
+    const tot = av.sum + vd.sum;
+    totAV += av.sum; totVD += vd.sum;
+    totQAV += av.count; totQVD += vd.count;
+    return `<tr><td>${f}</td><td class="num">R$ ${fmt(av.sum)}</td><td class="num">R$ ${fmt(vd.sum)}</td>
+      <td class="num">R$ ${fmt(tot)}</td><td class="num">${fmtInt(av.count)}</td>
+      <td class="num">${fmtInt(vd.count)}</td><td class="num">${fmtInt(av.count+vd.count)}</td></tr>`;
+  }).join('');
+  rows += `<tr class="total-row"><td>TOTAL</td><td class="num">R$ ${fmt(totAV)}</td><td class="num">R$ ${fmt(totVD)}</td>
+    <td class="num">R$ ${fmt(totAV+totVD)}</td><td class="num">${fmtInt(totQAV)}</td>
+    <td class="num">${fmtInt(totQVD)}</td><td class="num">${fmtInt(totQAV+totQVD)}</td></tr>`;
+  document.getElementById('pddResult').innerHTML = `
+    <div class="result-title">📋 Faixa de PDD × Situação</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Faixa PDD</th><th>VP - A vencer (R$)</th><th>VP - Vencido (R$)</th>
+        <th>VP - Total (R$)</th><th>Qtd - A vencer</th><th>Qtd - Vencido</th><th>Qtd - Total</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  document.getElementById('div2').style.display = '';
+}
+
+function renderSacados() {
+  if (!document.getElementById('chkSacados').checked) { document.getElementById('sacadosResult').innerHTML=''; return; }
+  const topN = parseInt(document.getElementById('topN').value) || 10;
+  const sorted = Object.entries(state.sacados).sort((a,b)=>b[1].sum-a[1].sum).slice(0,topN);
+  let rows = sorted.map(([nome,d],i) =>
+    `<tr><td style="text-align:center">${i+1}</td><td>${nome}</td>
+      <td class="num">${fmtInt(d.count)}</td><td class="num">R$ ${fmt(d.sum)}</td></tr>`
+  ).join('');
+  document.getElementById('sacadosResult').innerHTML = `
+    <div class="result-title">👤 Top ${topN} Maiores Sacados</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Nome Sacado</th><th>Qtd Recebíveis</th><th>Valor Presente Total (R$)</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  document.getElementById('div3').style.display = '';
+}
+
+function renderTotais() {
+  if (!document.getElementById('chkTotais').checked) { document.getElementById('totaisResult').innerHTML=''; return; }
+  const t = state.totais;
+  let rows = `<tr><td>Total Valor Presente (R$)</td><td class="num">R$ ${fmt(t.vp)}</td></tr>`;
+  if (t.hasVpdd) rows += `<tr><td>Total Valor PDD (R$)</td><td class="num">R$ ${fmt(t.vpdd)}</td></tr>`;
+  if (t.hasVnom) rows += `<tr><td>Total Valor Nominal (R$)</td><td class="num">R$ ${fmt(t.vnom)}</td></tr>`;
+  document.getElementById('totaisResult').innerHTML = `
+    <div class="result-title">💰 Totais Gerais</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
+// ─── EXCEL ────────────────────────────────────────────────────────────────────
+const COR_HDR = '1F3864', COR_TOT = '2E75B6', COR_AV = 'E8F4FD', COR_VD = 'FDE8E8';
+const COR_ALT = 'DDEEFF';
+
+function cell(v, bold=false, bg=null, color='000000', numFmt=null, align='left') {
+  const c = { v, t: typeof v === 'number' ? 'n' : 's', s: {
+    font: { bold, color: { rgb: color }, name: 'Arial', sz: 10 },
+    alignment: { horizontal: align, vertical: 'center', wrapText: true },
+    border: { top:{style:'thin',color:{rgb:'AAAAAA'}}, bottom:{style:'thin',color:{rgb:'AAAAAA'}},
+               left:{style:'thin',color:{rgb:'AAAAAA'}}, right:{style:'thin',color:{rgb:'AAAAAA'}} }
+  }};
+  if (bg)     c.s.fill = { fgColor: { rgb: bg } };
+  if (numFmt) c.s.numFmt = numFmt;
+  return c;
+}
+
+function hdr(v) { return cell(v, true, COR_HDR, 'FFFFFF', null, 'center'); }
+function tot(v, num=false) { return cell(v, true, COR_TOT, 'FFFFFF', num?'#,##0.00':null, num?'right':'center'); }
+function totI(v) { return cell(v, true, COR_TOT, 'FFFFFF', '#,##0', 'right'); }
+
+function buildSheet(data, cols) {
+  const ws = {};
+  data.forEach((row, ri) => {
+    row.forEach((val, ci) => {
+      const ref = XLSX.utils.encode_cell({r: ri, c: ci});
+      ws[ref] = val;
+    });
+  });
+  ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:data.length-1, c:cols.length-1}});
+  ws['!cols'] = cols.map(w => ({wch: w}));
+  return ws;
+}
+
+function downloadExcel() {
+  const wb = XLSX.utils.book_new();
+  const topN = parseInt(document.getElementById('topN').value) || 10;
+
+  // Aba Aging
+  if (document.getElementById('chkAging').checked) {
+    let totalC=0, totalS=0;
+    const rows = [
+      [hdr('Faixa'), hdr('Quantidade de Recebíveis'), hdr('Valor Presente (R$)')]
+    ];
+    ORDEM_AGING.forEach((f,i) => {
+      const d = state.aging[f];
+      totalC += d.count; totalS += d.sum;
+      const isV = f.includes('vencido');
+      const bg = isV ? COR_VD : COR_AV;
+      rows.push([
+        cell(f,false,bg,'000000',null,'center'),
+        cell(d.count,false,bg,'000000','#,##0','right'),
+        cell(d.sum,false,bg,'000000','#,##0.00','right')
+      ]);
+    });
+    rows.push([tot('TOTAL'), totI(totalC), tot(totalS,true)]);
+    XLSX.utils.book_append_sheet(wb, buildSheet(rows,[32,26,26]), 'Aging por Faixa');
+  }
+
+  // Aba PDD
+  if (document.getElementById('chkPdd').checked) {
+    const faixas = Object.keys(state.pdd).sort();
+    let tAV=0,tVD=0,tQAV=0,tQVD=0;
+    const rows = [[hdr('Faixa PDD'),hdr('VP - A vencer (R$)'),hdr('VP - Vencido (R$)'),
+                   hdr('VP - Total (R$)'),hdr('Qtd - A vencer'),hdr('Qtd - Vencido'),hdr('Qtd - Total')]];
+    faixas.forEach((f,i) => {
+      const av = state.pdd[f]['A vencer']||{count:0,sum:0};
+      const vd = state.pdd[f]['Vencido'] ||{count:0,sum:0};
+      const bg = i%2===0 ? 'FFFFFF' : COR_ALT;
+      tAV+=av.sum; tVD+=vd.sum; tQAV+=av.count; tQVD+=vd.count;
+      rows.push([
+        cell(f,false,bg,'000000',null,'center'),
+        cell(av.sum,false,bg,'000000','#,##0.00','right'),
+        cell(vd.sum,false,bg,'000000','#,##0.00','right'),
+        cell(av.sum+vd.sum,false,bg,'000000','#,##0.00','right'),
+        cell(av.count,false,bg,'000000','#,##0','right'),
+        cell(vd.count,false,bg,'000000','#,##0','right'),
+        cell(av.count+vd.count,false,bg,'000000','#,##0','right'),
+      ]);
+    });
+    rows.push([tot('TOTAL'),tot(tAV,true),tot(tVD,true),tot(tAV+tVD,true),totI(tQAV),totI(tQVD),totI(tQAV+tQVD)]);
+    XLSX.utils.book_append_sheet(wb, buildSheet(rows,[16,22,22,22,16,16,14]), 'PDD por Situação');
+  }
+
+  // Aba Sacados
+  if (document.getElementById('chkSacados').checked) {
+    const topN2 = parseInt(document.getElementById('topN').value)||10;
+    const sorted = Object.entries(state.sacados).sort((a,b)=>b[1].sum-a[1].sum).slice(0,topN2);
+    const rows = [[hdr('#'),hdr('Nome Sacado'),hdr('Qtd Recebíveis'),hdr('Valor Presente Total (R$)')]];
+    sorted.forEach(([nome,d],i) => {
+      const bg = i%2===0 ? 'FFFFFF' : COR_ALT;
+      rows.push([
+        cell(i+1,false,bg,'000000','#,##0','center'),
+        cell(nome,false,bg,'000000',null,'left'),
+        cell(d.count,false,bg,'000000','#,##0','right'),
+        cell(d.sum,false,bg,'000000','#,##0.00','right'),
+      ]);
+    });
+    XLSX.utils.book_append_sheet(wb, buildSheet(rows,[8,40,18,28]), `Top ${topN2} Sacados`);
+  }
+
+  // Aba Totais
+  if (document.getElementById('chkTotais').checked) {
+    const t = state.totais;
+    const rows = [[hdr('Métrica'), hdr('Valor (R$)')]];
+    rows.push([cell('Total Valor Presente (R$)',true,COR_AV),cell(t.vp,true,COR_AV,'000000','#,##0.00','right')]);
+    if (t.hasVpdd) rows.push([cell('Total Valor PDD (R$)',true,COR_VD),cell(t.vpdd,true,COR_VD,'000000','#,##0.00','right')]);
+    if (t.hasVnom) rows.push([cell('Total Valor Nominal (R$)',true,COR_ALT),cell(t.vnom,true,COR_ALT,'000000','#,##0.00','right')]);
+    XLSX.utils.book_append_sheet(wb, buildSheet(rows,[36,28]), 'Totais Gerais');
+  }
+
+  XLSX.writeFile(wb, 'resultado_estoque_fidc.xlsx');
+}
+
+// ─── REINICIAR ────────────────────────────────────────────────────────────────
+function reiniciar() {
+  state = newState();
+  pendingFiles = [];
+  document.getElementById('fileList').innerHTML = '';
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('statusBar').style.display = 'none';
+  document.getElementById('progressSection').style.display = 'none';
+  document.getElementById('btnProcessar').disabled = true;
+  fileInput.value = '';
+  ['agingResult','pddResult','sacadosResult','totaisResult'].forEach(id => document.getElementById(id).innerHTML='');
+  ['div1','div2','div3'].forEach(id => document.getElementById(id).style.display='none');
+}
+</script>
+</body>
+</html>
