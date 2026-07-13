@@ -1,0 +1,20 @@
+{
+  "54.857.414/0001-60": {
+    "nomeFundo": "INDIE MERX RAIZ I CRÉDITO AGRO FIDC DO AGRONEGÓCIO - RESPONSABILIDADE LIMITADA",
+    "updatedAt": "2026-07-13",
+    "reg_caracteristicas": "O Fundo adquire Direitos Creditórios do agronegócio representados por CPR-F (Cédulas de Produto Rural Financeiras) emitidas eletronicamente ou digitalmente pelos Devedores (Direitos Creditórios Emissão) ou CPR-F cedidas por Cedentes (Direitos Creditórios Cessão), incluindo todos os direitos, encargos, garantias e cessões fiduciárias vinculadas.",
+    "reg_elegibilidade": "Os Direitos Creditórios devem atender cumulativamente à Política de Investimento, à Política de Crédito e Originação, aos Critérios de Elegibilidade previstos no Anexo Descritivo e à Condição de Aquisição, todos verificados na respectiva Data de Aquisição.",
+    "reg_condicoesCessao": "A Gestora deve verificar previamente à aquisição o atendimento aos Critérios de Elegibilidade e à Condição de Aquisição, incluindo o recebimento de confirmação do Agente de Formalização de que os Direitos Creditórios, as CPR-F e respectivas Garantias foram formalizados conforme as minutas padrão e a Política de Crédito e Originação. A aquisição ocorre mediante pagamento do Preço de Aquisição ao Devedor ou Cedente, conforme o caso.",
+    "reg_derivativos": "O Fundo pode operar com instrumentos financeiros derivativos exclusivamente para proteção (hedge) das posições detidas à vista, limitado ao valor dessas posições e observada a Política de Investimento em Derivativos constante do Regulamento.",
+    "reg_emissaoCotas": "As características, condições de emissão, subscrição, integralização, remuneração, amortização e resgate constam do Anexo Descritivo e dos respectivos Apêndices. As Cotas são escriturais, destinadas a Investidores Qualificados (Oferta Pública exclusivamente para Investidores Profissionais), podendo haver colocação parcial e múltiplas séries para Cotas Seniores e Mezanino. A integralização ocorre conforme os Apêndices, em moeda corrente nacional.",
+    "reg_resgateCotas": "As Cotas são resgatadas apenas ao término do respectivo Prazo de Duração ou na liquidação da Classe. O Resgate corresponde ao último pagamento de amortização. As Cotas Subordinadas Mezanino somente são resgatadas após as Seniores e as Subordinadas Júnior após Seniores e Mezanino, ressalvadas as hipóteses previstas no Anexo Descritivo.",
+    "reg_amortizacaoCotas": "A amortização segue os cronogramas e parâmetros definidos nos respectivos Apêndices. As Cotas Seniores têm prioridade sobre as Subordinadas Mezanino, que têm prioridade sobre as Subordinadas Júnior, observadas as hipóteses específicas previstas no Anexo Descritivo.",
+    "reg_consultoria": "MERX CARBON SISTEMAS E COMERCIO LTDA.",
+    "reg_agtCobranca": "MERX CARBON SISTEMAS E COMERCIO LTDA.",
+    "reg_txAdmPct": "0,60",
+    "reg_txAdmMin": "25000",
+    "reg_txGestaoPct": "0,40",
+    "reg_txPerf": "Não há previsão de taxa de performance no regulamento do Fundo.",
+    "reg_txOutras": "Taxa de Consultoria devida ao Consultor Especializado; taxa de custódia, quando aplicável; taxa máxima de distribuição; despesas com classificação de risco, monitoramento das garantias, escrituração, registro, liquidação, custódia e demais encargos previstos no Regulamento."
+  }
+}
