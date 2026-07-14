@@ -1299,36 +1299,19 @@ function preencherWord() {
     Object.keys(zip.files).forEach(filename => {
       if (!filename.match(/\.(xml|rels)$/i)) return;
 
-      // Lê o arquivo — erro aqui apenas pula o arquivo
       let content;
       try { content = zip.files[filename].asText(); } catch(e) { return; }
       if (!content.includes('{')) { zip.file(filename, content); return; }
 
       Object.entries(data).forEach(([key, val]) => {
-        const tag     = '{' + key + '}';
+        const tag = '{' + key + '}';
         if (!content.includes(tag)) return;
         const safeVal = String(val !== null && val !== undefined ? val : '');
-        const escaped = safeVal.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-        // Passo 1: substituição com cor azul quando tag é único conteúdo do run
-        // Regex simples com {0,800} para evitar backtracking catastrófico
-        try {
-          const runOnly = new RegExp(
-            '<w:r[^>]*>(?:<w:rPr>[\\s\\S]{0,800}<\\/w:rPr>)?<w:t[^>]*>\\{' + key + '\\}<\\/w:t><\\/w:r>',
-            'g'
-          );
-          content = content.replace(runOnly,
-            '<w:r><w:rPr><w:color w:val="0070C0"/></w:rPr><w:t xml:space="preserve">' + escaped + '</w:t></w:r>'
-          );
-        } catch(e) { /* regex falhou — sem cor, mas continua */ }
-
-        // Passo 2: substituição simples para qualquer ocorrência restante
-        if (content.includes(tag)) {
-          content = content.split(tag).join(safeVal);
-        }
+        // Substituição simples: preserva TODA a formatação original (fonte, negrito, tamanho)
+        // Não cria novos elementos XML — apenas troca o texto dentro do <w:t> existente
+        content = content.split(tag).join(safeVal);
       });
 
-      // Sempre grava — independente de erros nos passos anteriores
       zip.file(filename, content);
     });
 
