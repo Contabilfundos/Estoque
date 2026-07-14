@@ -1296,39 +1296,40 @@ function preencherWord() {
     const zip  = new PizZip(b64ToArrayBuffer(WORD_TEMPLATE_B64));
     const data = buildWordData();
 
-    // Substitui tags em TODOS os arquivos XML do DOCX com destaque em azul
     Object.keys(zip.files).forEach(filename => {
       if (!filename.match(/\.(xml|rels)$/i)) return;
-      try {
-        let content = zip.files[filename].asText();
-        if (!content.includes('{')) return;
 
-        Object.entries(data).forEach(([key, val]) => {
-          const tag     = '{' + key + '}';
-          if (!content.includes(tag)) return;
-          const safeVal = String(val !== null && val !== undefined ? val : '');
-          const escaped = safeVal.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      // Lê o arquivo — erro aqui apenas pula o arquivo
+      let content;
+      try { content = zip.files[filename].asText(); } catch(e) { return; }
+      if (!content.includes('{')) { zip.file(filename, content); return; }
 
-          // Tenta substituição com cor azul (0070C0) preservando estrutura OOXML
-          const tagPat  = tag.replace(/[{}]/g,'\\$&');
-          const runPat  = new RegExp(
-            `(<w:r(?:\\s[^>]*)?>)(<w:rPr>(?:(?!</w:rPr>)[\\s\\S])*</w:rPr>)?(<w:t[^>]*>)${tagPat}(</w:t></w:r>)`,
+      Object.entries(data).forEach(([key, val]) => {
+        const tag     = '{' + key + '}';
+        if (!content.includes(tag)) return;
+        const safeVal = String(val !== null && val !== undefined ? val : '');
+        const escaped = safeVal.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+        // Passo 1: substituição com cor azul quando tag é único conteúdo do run
+        // Regex simples com {0,800} para evitar backtracking catastrófico
+        try {
+          const runOnly = new RegExp(
+            '<w:r[^>]*>(?:<w:rPr>[\\s\\S]{0,800}<\\/w:rPr>)?<w:t[^>]*>\\{' + key + '\\}<\\/w:t><\\/w:r>',
             'g'
           );
-          const newContent = content.replace(runPat, (_, rOpen, rPr, tOpen, close) => {
-            // Adiciona cor azul ao rPr existente ou cria novo
-            const coloredRPr = rPr
-              ? rPr.replace('</w:rPr>', '<w:color w:val="0070C0"/></w:rPr>')
-              : '<w:rPr><w:color w:val="0070C0"/></w:rPr>';
-            return `${rOpen}${coloredRPr}<w:t xml:space="preserve">${escaped}</w:t></w:r>`;
-          });
+          content = content.replace(runOnly,
+            '<w:r><w:rPr><w:color w:val="0070C0"/></w:rPr><w:t xml:space="preserve">' + escaped + '</w:t></w:r>'
+          );
+        } catch(e) { /* regex falhou — sem cor, mas continua */ }
 
-          // Se o regex substituiu, usa; senão fallback simples
-          content = newContent !== content ? newContent : content.split(tag).join(safeVal);
-        });
+        // Passo 2: substituição simples para qualquer ocorrência restante
+        if (content.includes(tag)) {
+          content = content.split(tag).join(safeVal);
+        }
+      });
 
-        zip.file(filename, content);
-      } catch(e) {}
+      // Sempre grava — independente de erros nos passos anteriores
+      zip.file(filename, content);
     });
 
     const blob = zip.generate({
@@ -1339,11 +1340,13 @@ function preencherWord() {
     const a = document.createElement('a');
     a.href = url; a.download = 'Notas_Explicativas_Preenchidas.docx';
     a.click(); URL.revokeObjectURL(url);
+
   } catch(e) {
     console.error('Erro ao preencher Word:', e);
     alert('Erro ao preencher o modelo Word.\n\n' + (e.message || e));
   }
 }
+
 const dropCarteira  = document.getElementById('dropCarteira');
 const carteiraInput = document.getElementById('carteiraInput');
 
