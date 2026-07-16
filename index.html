@@ -154,10 +154,10 @@ select.fundo-select { width:100%; padding:7px 10px; border:1px solid #c5d0e0; bo
       <div class="card">
         <div class="card-title"><span>📁</span> 1. Selecione os arquivos CSV — Estoque</div>
         <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-          <input type="file" id="fileInput" multiple accept=".csv">
+          <input type="file" id="fileInput" multiple accept=".csv,.xlsx,.xls">
           <div class="drop-icon">📂</div>
           <div class="drop-text"><strong>Clique para selecionar</strong> ou arraste os arquivos aqui</div>
-          <div class="drop-hint">Arquivos CSV separados por ponto e vírgula • Pode selecionar vários de uma vez</div>
+          <div class="drop-hint">Arquivos CSV ou XLSX separados por ponto e vírgula • Pode selecionar vários de uma vez</div>
         </div>
         <div class="file-list" id="fileList"></div>
         <div class="progress-section" id="progressSection">
@@ -452,7 +452,13 @@ state = newState();
 // ─── UTILS ────────────────────────────────────────────────────────────────────
 function parseVal(v) {
   if (!v && v!==0) return 0;
-  return parseFloat(String(v).replace(',','.').trim()) || 0;
+  // Remove separador de milhar (ponto) ANTES de trocar vírgula decimal por ponto
+  // Ex: "1.234,56" → "1234.56" → 1234.56
+  const s = String(v).trim();
+  // Se tem vírgula = formato brasileiro: remove pontos, troca vírgula
+  if (s.includes(',')) return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+  // Sem vírgula = já está em formato numérico padrão
+  return parseFloat(s) || 0;
 }
 function parseDate(s) {
   if (!s) return null;
@@ -519,7 +525,11 @@ dropZone.addEventListener('drop', e=>{ e.preventDefault(); dropZone.classList.re
 fileInput.addEventListener('change', ()=>addFiles(Array.from(fileInput.files)));
 
 function addFiles(files) {
-  const novos = files.filter(f=>f.name.toLowerCase().endsWith('.csv') && !pendingFiles.find(p=>p.name===f.name));
+  const validos = ['csv','xlsx','xls'];
+  const novos = files.filter(f => {
+    const ext = f.name.split('.').pop().toLowerCase();
+    return validos.includes(ext) && !pendingFiles.find(p=>p.name===f.name);
+  });
   pendingFiles = [...pendingFiles, ...novos];
   renderFileList();
   document.getElementById('btnProcessar').disabled = pendingFiles.length===0;
@@ -1617,17 +1627,49 @@ function processarRow(row) {
 }
 
 function processarArquivo(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'xlsx' || ext === 'xls') {
+    return processarXLSX(file);
+  }
   return new Promise((resolve,reject)=>{
     let colMap = null;
     Papa.parse(file,{
       header:true, delimiter:';', encoding:'ISO-8859-1', skipEmptyLines:true,
       step: r=>{
-        // Monta o mapa de colunas na primeira linha
         if (!colMap) colMap = buildColMap(Object.keys(r.data));
         try { processarRow(normalizeRow(r.data, colMap)); } catch(e) {}
       },
       complete:resolve, error:reject
     });
+  });
+}
+
+function processarXLSX(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data  = new Uint8Array(e.target.result);
+        const wb    = XLSX.read(data, { type: 'array', cellDates: true });
+        const ws    = wb.Sheets[wb.SheetNames[0]];
+        const rows  = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+        if (rows.length < 2) { resolve(); return; }
+
+        // Primeira linha = cabeçalhos
+        const headers = rows[0].map(h => String(h||'').trim());
+        let colMap = buildColMap(headers);
+
+        for (let i = 1; i < rows.length; i++) {
+          const raw = {};
+          headers.forEach((h, idx) => { raw[h] = rows[i][idx] !== undefined ? String(rows[i][idx]) : ''; });
+          try { processarRow(normalizeRow(raw, colMap)); } catch(err) {}
+        }
+        resolve();
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
   });
 }
 
