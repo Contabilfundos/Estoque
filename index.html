@@ -1349,8 +1349,8 @@ function buildWordData() {
   data.agpddvd   = state.totais.vpddVD > 0 ? fmtMil(-state.totais.vpddVD) : '-';
   data.agdcliq   = fmtMil(tav+tvd-state.totais.vpdd);
   // A Vencer e Vencido para DC líquidos (PDD deduzido do total)
-  data.agdcliqav = fmtMil(tav);
-  data.agdcliqvd = fmtMil(tvd);
+  data.agdcliqav = fmtMil(tav-state.totais.vpddAV);
+  data.agdcliqvd = fmtMil(tvd-state.totais.vpddVD);
 
   // ── Tipo de Direito Creditório ────────────────────────────────────────────
   const tipos = Object.entries(state.tipoRecebivel)
@@ -1376,8 +1376,8 @@ function buildWordData() {
   data.tptt  = fmtMil(tpta+tptv);
   data.tppdd = fmtMil(-state.totais.vpdd);
   // DC líquidos no quadro de tipo DC
-  data.tpdcliqav  = fmtMil(tpta);
-  data.tpdcliqvd  = fmtMil(tptv);
+  data.tpdcliqav  = fmtMil(tpta-state.totais.vpddAV);
+  data.tpdcliqvd  = fmtMil(tptv-state.totais.vpddVD);
   data.tpdcliqtot = fmtMil(tpta+tptv-state.totais.vpdd);
 
   // ── PDD ───────────────────────────────────────────────────────────────────
